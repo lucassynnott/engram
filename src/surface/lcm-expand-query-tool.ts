@@ -1,10 +1,10 @@
 import { Type } from "@sinclair/typebox";
 import crypto from "node:crypto";
-import type { LcmContextEngine } from "../engine.js";
+import type { LcmContextEngine } from "../context/engine.js";
 import {
   createDelegatedExpansionGrant,
   revokeDelegatedExpansionGrantForSession,
-} from "../expansion-auth.js";
+} from "../context/expansion-auth.js";
 import type { LcmDependencies } from "../types.js";
 import { jsonResult, type AnyAgentTool } from "./common.js";
 import { resolveLcmConversationScope } from "./lcm-conversation-scope.js";

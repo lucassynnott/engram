@@ -1,14 +1,14 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { MessagePartRecord, MessageRecord, MessageRole } from "../src/store/conversation-store.js";
+import type { MessagePartRecord, MessageRecord, MessageRole } from "../src/memory/store/conversation-store.js";
 import type {
   SummaryRecord,
   ContextItemRecord,
   SummaryKind,
   LargeFileRecord,
-} from "../src/store/summary-store.js";
-import { ContextAssembler } from "../src/assembler.js";
-import { CompactionEngine, type CompactionConfig } from "../src/compaction.js";
-import { RetrievalEngine } from "../src/retrieval.js";
+} from "../src/memory/store/summary-store.js";
+import { ContextAssembler } from "../src/context/assembler.js";
+import { CompactionEngine, type CompactionConfig } from "../src/memory/compaction.js";
+import { RetrievalEngine } from "../src/memory/retrieval.js";
 
 // ── Mock Store Factories ─────────────────────────────────────────────────────
 

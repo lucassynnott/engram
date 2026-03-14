@@ -6,7 +6,7 @@ import {
   detectBroadTimeRangeIndicator,
   detectMultiHopIndicator,
   estimateExpansionTokens,
-} from "../src/expansion-policy.js";
+} from "../src/context/expansion-policy.js";
 
 describe("decideLcmExpansionRouting", () => {
   it("applies the expected route-vs-delegate decision matrix", () => {

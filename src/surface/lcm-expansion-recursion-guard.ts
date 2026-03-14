@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { resolveDelegatedExpansionGrantId } from "../expansion-auth.js";
+import { resolveDelegatedExpansionGrantId } from "../context/expansion-auth.js";
 import type { LcmDependencies } from "../types.js";
 
 export const EXPANSION_RECURSION_ERROR_CODE = "EXPANSION_RECURSION_BLOCKED";

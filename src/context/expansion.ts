@@ -1,6 +1,6 @@
 import { Type } from "@sinclair/typebox";
-import type { LcmConfig } from "./db/config.js";
-import type { RetrievalEngine, ExpandResult, GrepResult } from "./retrieval.js";
+import type { LcmConfig } from "../db/config.js";
+import type { RetrievalEngine, ExpandResult, GrepResult } from "../memory/retrieval.js";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

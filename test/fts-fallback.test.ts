@@ -4,8 +4,8 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { getLcmConnection, closeLcmConnection } from "../src/db/connection.js";
 import { runLcmMigrations } from "../src/db/migration.js";
-import { ConversationStore } from "../src/store/conversation-store.js";
-import { SummaryStore } from "../src/store/summary-store.js";
+import { ConversationStore } from "../src/memory/store/conversation-store.js";
+import { SummaryStore } from "../src/memory/store/summary-store.js";
 
 const tempDirs: string[] = [];
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeToolUseResultPairing } from "../src/transcript-repair.js";
+import { sanitizeToolUseResultPairing } from "../src/graph/transcript-repair.js";
 
 describe("sanitizeToolUseResultPairing", () => {
   it("moves OpenAI reasoning blocks before function_call blocks", () => {

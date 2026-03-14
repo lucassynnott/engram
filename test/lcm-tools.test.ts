@@ -2,10 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createDelegatedExpansionGrant,
   resetDelegatedExpansionGrantsForTests,
-} from "../src/expansion-auth.js";
-import { createLcmDescribeTool } from "../src/tools/lcm-describe-tool.js";
-import { createLcmExpandTool } from "../src/tools/lcm-expand-tool.js";
-import { createLcmGrepTool } from "../src/tools/lcm-grep-tool.js";
+} from "../src/context/expansion-auth.js";
+import { createLcmDescribeTool } from "../src/surface/lcm-describe-tool.js";
+import { createLcmExpandTool } from "../src/surface/lcm-expand-tool.js";
+import { createLcmGrepTool } from "../src/surface/lcm-grep-tool.js";
 import type { LcmDependencies } from "../src/types.js";
 
 function parseAgentSessionKey(sessionKey: string): { agentId: string; suffix: string } | null {
@@ -148,7 +148,7 @@ describe("LCM tools session scoping", () => {
   it("lcm_grep forwards since/before and includes local timestamps in text output", async () => {
     const createdAt = new Date("2026-01-03T00:00:00.000Z");
     // Import formatTimestamp to generate expected output
-    const { formatTimestamp } = await import("../src/compaction.js");
+    const { formatTimestamp } = await import("../src/memory/compaction.js");
     const timezone = "UTC"; // Test environment uses UTC
     const expectedTimestamp = formatTimestamp(createdAt, timezone);
     const retrieval = {

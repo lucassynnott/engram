@@ -1,8 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { ExpansionRequest, ExpansionResult } from "../src/expansion.js";
-import type { RetrievalEngine, ExpandResult, GrepResult } from "../src/retrieval.js";
-import { ExpansionAuthManager, wrapWithAuth } from "../src/expansion-auth.js";
-import { ExpansionOrchestrator, distillForSubagent } from "../src/expansion.js";
+import type { ExpansionRequest, ExpansionResult } from "../src/context/expansion.js";
+import type { RetrievalEngine, ExpandResult, GrepResult } from "../src/memory/retrieval.js";
+import { ExpansionAuthManager, wrapWithAuth } from "../src/context/expansion-auth.js";
+import { ExpansionOrchestrator, distillForSubagent } from "../src/context/expansion.js";
 
 // ---------------------------------------------------------------------------
 // Helpers

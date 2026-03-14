@@ -1,15 +1,15 @@
 {
-  "name": "@martian-engineering/lossless-claw",
-  "version": "0.3.0",
-  "description": "Lossless Context Management plugin for OpenClaw — DAG-based conversation summarization with incremental compaction",
+  "name": "openclaw-memory",
+  "version": "0.1.0",
+  "description": "Unified memory and context engine plugin for OpenClaw — absorbs Lossless Claw, Gigabrain, and OpenStinger into a single plugin",
   "type": "module",
   "main": "index.ts",
   "license": "MIT",
-  "author": "Josh Lehman <josh@martian.engineering>",
   "keywords": [
     "openclaw",
     "openclaw-plugin",
     "context-management",
+    "memory",
     "llm",
     "summarization",
     "conversation-memory",
@@ -49,13 +49,5 @@
     "extensions": [
       "./index.ts"
     ]
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Martian-Engineering/lossless-claw.git"
-  },
-  "homepage": "https://github.com/Martian-Engineering/lossless-claw#readme",
-  "bugs": {
-    "url": "https://github.com/Martian-Engineering/lossless-claw/issues"
   }
 }

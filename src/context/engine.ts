@@ -15,11 +15,11 @@ import type {
   SubagentSpawnPreparation,
 } from "openclaw/plugin-sdk";
 import { ContextAssembler } from "./assembler.js";
-import { CompactionEngine, type CompactionConfig } from "./compaction.js";
-import type { LcmConfig } from "./db/config.js";
-import { getLcmConnection, closeLcmConnection } from "./db/connection.js";
-import { getLcmDbFeatures } from "./db/features.js";
-import { runLcmMigrations } from "./db/migration.js";
+import { CompactionEngine, type CompactionConfig } from "../memory/compaction.js";
+import type { LcmConfig } from "../db/config.js";
+import { getLcmConnection, closeLcmConnection } from "../db/connection.js";
+import { getLcmDbFeatures } from "../db/features.js";
+import { runLcmMigrations } from "../db/migration.js";
 import {
   createDelegatedExpansionGrant,
   removeDelegatedExpansionGrantForSession,
@@ -30,16 +30,16 @@ import {
   formatFileReference,
   generateExplorationSummary,
   parseFileBlocks,
-} from "./large-files.js";
-import { RetrievalEngine } from "./retrieval.js";
+} from "../integration/large-files.js";
+import { RetrievalEngine } from "../memory/retrieval.js";
 import {
   ConversationStore,
   type CreateMessagePartInput,
   type MessagePartType,
-} from "./store/conversation-store.js";
-import { SummaryStore } from "./store/summary-store.js";
-import { createLcmSummarizeFromLegacyParams } from "./summarize.js";
-import type { LcmDependencies } from "./types.js";
+} from "../memory/store/conversation-store.js";
+import { SummaryStore } from "../memory/store/summary-store.js";
+import { createLcmSummarizeFromLegacyParams } from "../memory/summarize.js";
+import type { LcmDependencies } from "../types.js";
 
 type AgentMessage = Parameters<ContextEngine["ingest"]>[0]["message"];
 type AssembleResultWithSystemPrompt = AssembleResult & { systemPromptAddition?: string };
@@ -257,7 +257,7 @@ function buildMessageParts(params: {
   sessionId: string;
   message: AgentMessage;
   fallbackContent: string;
-}): import("./store/conversation-store.js").CreateMessagePartInput[] {
+}): import("../memory/store/conversation-store.js").CreateMessagePartInput[] {
   const { sessionId, message, fallbackContent } = params;
   const role = typeof message.role === "string" ? message.role : "unknown";
   const topLevel = message as unknown as Record<string, unknown>;

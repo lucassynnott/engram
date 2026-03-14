@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { ConversationStore, CreateMessagePartInput } from "./store/conversation-store.js";
 import type { SummaryStore, SummaryRecord, ContextItemRecord } from "./store/summary-store.js";
-import { extractFileIdsFromContent } from "./large-files.js";
+import { extractFileIdsFromContent } from "../integration/large-files.js";
 
 // ── Public types ─────────────────────────────────────────────────────────────
 

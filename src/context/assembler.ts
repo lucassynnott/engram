@@ -1,11 +1,11 @@
 import type { ContextEngine } from "openclaw/plugin-sdk";
-import { sanitizeToolUseResultPairing } from "./transcript-repair.js";
+import { sanitizeToolUseResultPairing } from "../graph/transcript-repair.js";
 import type {
   ConversationStore,
   MessagePartRecord,
   MessageRole,
-} from "./store/conversation-store.js";
-import type { SummaryStore, ContextItemRecord, SummaryRecord } from "./store/summary-store.js";
+} from "../memory/store/conversation-store.js";
+import type { SummaryStore, ContextItemRecord, SummaryRecord } from "../memory/store/summary-store.js";
 
 type AgentMessage = Parameters<ContextEngine["ingest"]>[0]["message"];
 

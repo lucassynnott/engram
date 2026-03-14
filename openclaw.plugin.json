@@ -1,5 +1,8 @@
 {
-  "id": "lossless-claw",
+  "id": "openclaw-memory",
+  "displayName": "OpenClaw Memory",
+  "description": "Unified memory and context engine for OpenClaw — DAG-based summarization, retrieval, and sub-agent expansion",
+  "version": "0.1.0",
   "uiHints": {
     "contextThreshold": {
       "label": "Context Threshold",
@@ -15,15 +18,15 @@
     },
     "dbPath": {
       "label": "Database Path",
-      "help": "Path to LCM SQLite database (default: ~/.openclaw/lcm.db)"
+      "help": "Path to memory SQLite database (default: ~/.openclaw/lcm.db)"
     },
     "summaryModel": {
       "label": "Summary Model",
-      "help": "Model override for LCM summarization (e.g., 'gpt-5.4' or 'openai-resp/gpt-5.4')"
+      "help": "Model override for summarization (e.g., 'gpt-5.4' or 'openai-resp/gpt-5.4')"
     },
     "summaryProvider": {
       "label": "Summary Provider",
-      "help": "Provider override for LCM summarization (e.g., 'openai-resp')"
+      "help": "Provider override for summarization (e.g., 'openai-resp')"
     }
   },
   "configSchema": {

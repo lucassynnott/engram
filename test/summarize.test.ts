@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createLcmSummarizeFromLegacyParams } from "../src/summarize.js";
+import { createLcmSummarizeFromLegacyParams } from "../src/memory/summarize.js";
 import type { LcmDependencies } from "../src/types.js";
 
 function makeDeps(overrides?: Partial<LcmDependencies>): LcmDependencies {

@@ -1,14 +1,14 @@
 import { Type } from "@sinclair/typebox";
-import type { LcmContextEngine } from "../engine.js";
+import type { LcmContextEngine } from "../context/engine.js";
 import {
   getRuntimeExpansionAuthManager,
   resolveDelegatedExpansionGrantId,
-} from "../expansion-auth.js";
+} from "../context/expansion-auth.js";
 import type { LcmDependencies } from "../types.js";
 import type { AnyAgentTool } from "./common.js";
 import { jsonResult } from "./common.js";
 import { resolveLcmConversationScope } from "./lcm-conversation-scope.js";
-import { formatTimestamp } from "../compaction.js";
+import { formatTimestamp } from "../memory/compaction.js";
 
 const LcmDescribeSchema = Type.Object({
   id: Type.String({

@@ -1,10 +1,10 @@
 import { Type } from "@sinclair/typebox";
-import type { LcmContextEngine } from "../engine.js";
+import type { LcmContextEngine } from "../context/engine.js";
 import type { LcmDependencies } from "../types.js";
 import type { AnyAgentTool } from "./common.js";
 import { jsonResult } from "./common.js";
 import { parseIsoTimestampParam, resolveLcmConversationScope } from "./lcm-conversation-scope.js";
-import { formatTimestamp } from "../compaction.js";
+import { formatTimestamp } from "../memory/compaction.js";
 
 const MAX_RESULT_CHARS = 40_000; // ~10k tokens
 

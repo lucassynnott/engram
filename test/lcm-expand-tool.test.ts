@@ -1,11 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { LcmContextEngine } from "../src/engine.js";
+import type { LcmContextEngine } from "../src/context/engine.js";
 import {
   createDelegatedExpansionGrant,
   resetDelegatedExpansionGrantsForTests,
   revokeDelegatedExpansionGrantForSession,
-} from "../src/expansion-auth.js";
-import { createLcmExpandTool } from "../src/tools/lcm-expand-tool.js";
+} from "../src/context/expansion-auth.js";
+import { createLcmExpandTool } from "../src/surface/lcm-expand-tool.js";
 import type { LcmDependencies } from "../src/types.js";
 
 const callGatewayMock = vi.fn();

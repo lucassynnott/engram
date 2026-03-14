@@ -1,4 +1,4 @@
-import type { LcmContextEngine } from "../engine.js";
+import type { LcmContextEngine } from "../context/engine.js";
 import type { LcmDependencies } from "../types.js";
 
 export type LcmConversationScope = {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { LcmConfig } from "../src/db/config.js";
-import type { ExpansionOrchestrator } from "../src/expansion.js";
-import { buildExpansionToolDefinition } from "../src/expansion.js";
+import type { ExpansionOrchestrator } from "../src/context/expansion.js";
+import { buildExpansionToolDefinition } from "../src/context/expansion.js";
 
 const BASE_CONFIG: LcmConfig = {
   enabled: true,

@@ -1,4 +1,4 @@
-import type { LcmDependencies } from "./types.js";
+import type { LcmDependencies } from "../types.js";
 
 export type LcmSummarizeOptions = {
   previousSummary?: string;

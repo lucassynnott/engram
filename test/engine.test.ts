@@ -5,10 +5,10 @@ import { join } from "node:path";
 import type { AgentMessage } from "@mariozechner/pi-agent-core";
 import { SessionManager } from "@mariozechner/pi-coding-agent";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ContextAssembler } from "../src/assembler.js";
+import { ContextAssembler } from "../src/context/assembler.js";
 import type { LcmConfig } from "../src/db/config.js";
 import { closeLcmConnection } from "../src/db/connection.js";
-import { LcmContextEngine } from "../src/engine.js";
+import { LcmContextEngine } from "../src/context/engine.js";
 import type { LcmDependencies } from "../src/types.js";
 
 const tempDirs: string[] = [];

@@ -8,11 +8,11 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import { resolveLcmConfig } from "./src/db/config.js";
-import { LcmContextEngine } from "./src/engine.js";
-import { createLcmDescribeTool } from "./src/tools/lcm-describe-tool.js";
-import { createLcmExpandQueryTool } from "./src/tools/lcm-expand-query-tool.js";
-import { createLcmExpandTool } from "./src/tools/lcm-expand-tool.js";
-import { createLcmGrepTool } from "./src/tools/lcm-grep-tool.js";
+import { LcmContextEngine } from "./src/context/engine.js";
+import { createLcmDescribeTool } from "./src/surface/lcm-describe-tool.js";
+import { createLcmExpandQueryTool } from "./src/surface/lcm-expand-query-tool.js";
+import { createLcmExpandTool } from "./src/surface/lcm-expand-tool.js";
+import { createLcmGrepTool } from "./src/surface/lcm-grep-tool.js";
 import type { LcmDependencies } from "./src/types.js";
 
 /** Parse `agent:<agentId>:<suffix...>` session keys. */

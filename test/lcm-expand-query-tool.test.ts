@@ -1,17 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { LcmContextEngine } from "../src/engine.js";
+import type { LcmContextEngine } from "../src/context/engine.js";
 import {
   createDelegatedExpansionGrant,
   resolveDelegatedExpansionGrantId,
   resetDelegatedExpansionGrantsForTests,
-} from "../src/expansion-auth.js";
+} from "../src/context/expansion-auth.js";
 import {
   getDelegatedExpansionContextForTests,
   getExpansionDelegationTelemetrySnapshotForTests,
   resetExpansionDelegationGuardForTests,
   stampDelegatedExpansionContext,
-} from "../src/tools/lcm-expansion-recursion-guard.js";
-import { createLcmExpandQueryTool } from "../src/tools/lcm-expand-query-tool.js";
+} from "../src/surface/lcm-expansion-recursion-guard.js";
+import { createLcmExpandQueryTool } from "../src/surface/lcm-expand-query-tool.js";
 import type { LcmDependencies } from "../src/types.js";
 
 const callGatewayMock = vi.fn();

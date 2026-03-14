@@ -1,9 +1,9 @@
-import type { ConversationStore } from "./store/conversation-store.js";
+import type { ConversationStore } from "../memory/store/conversation-store.js";
 import type {
   SummaryStore,
   SummaryRecord,
   ContextItemRecord,
-} from "./store/summary-store.js";
+} from "../memory/store/summary-store.js";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
