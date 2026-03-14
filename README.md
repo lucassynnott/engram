@@ -1,31 +1,40 @@
-# lossless-claw
+# openclaw-memory
 
-Lossless Context Management plugin for [OpenClaw](https://github.com/openclaw/openclaw), based on the [LCM paper](https://papers.voltropy.com/LCM). Replaces OpenClaw's built-in sliding-window compaction with a DAG-based summarization system that preserves every message while keeping active context within model token limits.
+Unified memory and context engine plugin for [OpenClaw](https://github.com/openclaw/openclaw). Replaces OpenClaw's built-in sliding-window compaction with a DAG-based summarization system that preserves every message, adds pre-compaction fact extraction, and provides persistent cross-session memory for all your agents.
+
+Absorbs three previously separate projects: **Lossless Claw** (context management), **Gigabrain** (memory capture), and **OpenStinger** (cross-agent memory). One install, one config, one database.
 
 ## Table of contents
 
 - [What it does](#what-it-does)
 - [Quick start](#quick-start)
 - [Configuration](#configuration)
+- [Agent tools](#agent-tools)
 - [Documentation](#documentation)
 - [Development](#development)
 - [License](#license)
 
 ## What it does
 
-Two ways to learn: read the below, or [check out this super cool animated visualization](https://losslesscontext.ai).
+When a conversation grows beyond the model's context window, OpenClaw normally truncates older messages. openclaw-memory instead:
 
-When a conversation grows beyond the model's context window, OpenClaw (just like all of the other agents) normally truncates older messages. LCM instead:
-
-1. **Persists every message** in a SQLite database, organized by conversation
+1. **Persists every message** in a local SQLite database, organized by conversation
 2. **Summarizes chunks** of older messages into summaries using your configured LLM
 3. **Condenses summaries** into higher-level nodes as they accumulate, forming a DAG (directed acyclic graph)
 4. **Assembles context** each turn by combining summaries + recent raw messages
 5. **Provides tools** (`lcm_grep`, `lcm_describe`, `lcm_expand`) so agents can search and recall details from compacted history
+6. **Extracts durable facts** right before compaction — decisions, preferences, entities, episodes — so they survive summarization intact
+7. **Queries memory** via `memory_query` for semantic search across all captured knowledge
 
 Nothing is lost. Raw messages stay in the database. Summaries link back to their source messages. Agents can drill into any summary to recover the original detail.
 
-**It feels like talking to an agent that never forgets. Because it doesn't. In normal operation, you'll never need to think about compaction again.**
+**It feels like talking to an agent that never forgets. Because it doesn't.**
+
+### Pre-compaction fact extraction
+
+Right before messages are compacted into summaries (a lossy operation), openclaw-memory scans them for durable signals: architectural decisions, stated preferences, named entities, key episodes. These are extracted with fast heuristics — no LLM call, no extra latency — and stored permanently with `source=pre_compaction`.
+
+This is the critical difference from a simple summarization approach: durable facts survive even after the summaries containing them have been condensed or re-summarized. Your agent remembers things you said hours ago *specifically*, not vaguely.
 
 ## Quick start
 
@@ -37,59 +46,66 @@ Nothing is lost. Raw messages stay in the database. Summaries link back to their
 
 ### Install the plugin
 
-Use OpenClaw's plugin installer (recommended):
-
 ```bash
-openclaw plugins install @martian-engineering/lossless-claw
+openclaw plugins install openclaw-memory
 ```
 
-If you're running from a local OpenClaw checkout, use:
+If you're running from a local OpenClaw checkout:
 
 ```bash
-pnpm openclaw plugins install @martian-engineering/lossless-claw
+pnpm openclaw plugins install openclaw-memory
 ```
 
-For local plugin development, link your working copy instead of copying files:
+For local plugin development, link your working copy:
 
 ```bash
-openclaw plugins install --link /path/to/lossless-claw
-# or from a local OpenClaw checkout:
-# pnpm openclaw plugins install --link /path/to/lossless-claw
+openclaw plugins install --link /path/to/openclaw-memory
 ```
 
-The install command records the plugin, enables it, and applies compatible slot selection (including `contextEngine` when applicable).
+The install command records the plugin, enables it, and wires it into the `contextEngine` slot automatically.
 
-### Configure OpenClaw
+### Recommended starting configuration
 
-In most cases, no manual JSON edits are needed after `openclaw plugins install`.
+Add these to your environment or OpenClaw config:
 
-If you need to set it manually, ensure the context engine slot points at lossless-claw:
+```bash
+LCM_FRESH_TAIL_COUNT=32
+LCM_INCREMENTAL_MAX_DEPTH=-1
+LCM_CONTEXT_THRESHOLD=0.75
+```
+
+- `FRESH_TAIL_COUNT=32` — protects the last 32 messages from compaction (recent context stays raw)
+- `INCREMENTAL_MAX_DEPTH=-1` — enables full cascade condensation after each compaction pass
+- `CONTEXT_THRESHOLD=0.75` — triggers at 75% of the model's context window, leaving headroom
+
+For long-lived sessions (7+ days of continuous agent operation):
 
 ```json
 {
-  "plugins": {
-    "slots": {
-      "contextEngine": "lossless-claw"
+  "session": {
+    "reset": {
+      "mode": "idle",
+      "idleMinutes": 10080
     }
   }
 }
 ```
 
-Restart OpenClaw after configuration changes.
+This keeps sessions alive across idle gaps so memory accumulates over weeks, not hours.
 
 ## Configuration
 
-LCM is configured through a combination of plugin config and environment variables. Environment variables take precedence for backward compatibility.
+openclaw-memory is configured through plugin config or environment variables. Environment variables take precedence.
 
 ### Plugin config
 
-Add a `lossless-claw` entry under `plugins.entries` in your OpenClaw config:
+Add an `openclaw-memory` entry under `plugins.entries` in your OpenClaw config:
 
 ```json
 {
   "plugins": {
     "entries": {
-      "lossless-claw": {
+      "openclaw-memory": {
         "enabled": true,
         "config": {
           "freshTailCount": 32,
@@ -126,21 +142,9 @@ Add a `lossless-claw` entry under `plugins.entries` in your OpenClaw config:
 | `LCM_AUTOCOMPACT_DISABLED` | `false` | Disable automatic compaction after turns |
 | `LCM_PRUNE_HEARTBEAT_OK` | `false` | Retroactively delete `HEARTBEAT_OK` turn cycles from LCM storage |
 
-### Recommended starting configuration
-
-```
-LCM_FRESH_TAIL_COUNT=32
-LCM_INCREMENTAL_MAX_DEPTH=-1
-LCM_CONTEXT_THRESHOLD=0.75
-```
-
-- **freshTailCount=32** protects the last 32 messages from compaction, giving the model enough recent context for continuity.
-- **incrementalMaxDepth=-1** enables unlimited automatic condensation after each compaction pass — the DAG cascades as deep as needed. Set to `0` (default) for leaf-only, or a positive integer for a specific depth cap.
-- **contextThreshold=0.75** triggers compaction when context reaches 75% of the model's window, leaving headroom for the model's response.
-
 ### OpenClaw session reset settings
 
-LCM preserves history through compaction, but it does **not** change OpenClaw's core session reset policy. If sessions are resetting sooner than you want, increase OpenClaw's `session.reset.idleMinutes` or use a channel/type-specific override.
+openclaw-memory preserves history through compaction, but it does **not** change OpenClaw's core session reset policy. If sessions are resetting sooner than you want, increase OpenClaw's `session.reset.idleMinutes` or use a channel/type-specific override.
 
 ```json
 {
@@ -153,37 +157,26 @@ LCM preserves history through compaction, but it does **not** change OpenClaw's 
 }
 ```
 
-- `session.reset.mode: "idle"` keeps a session alive until the idle window expires.
-- `session.reset.idleMinutes` is the actual reset interval in minutes.
-- OpenClaw does **not** currently enforce a maximum `idleMinutes`; in source it is validated only as a positive integer.
-- If you also use daily reset mode, `idleMinutes` acts as a secondary guard and the session resets when **either** the daily boundary or the idle window is reached first.
-- Legacy `session.idleMinutes` still works, but OpenClaw prefers `session.reset.idleMinutes`.
+Useful values: `1440` (1 day), `10080` (7 days), `43200` (30 days), `525600` (365 days).
 
-Useful values:
+## Agent tools
 
-- `1440` = 1 day
-- `10080` = 7 days
-- `43200` = 30 days
-- `525600` = 365 days
+Once installed, your agents automatically have access to:
 
-For most long-lived LCM setups, a good starting point is:
+| Tool | What it does |
+|------|-------------|
+| `lcm_grep` | Full-text search across all stored conversation history |
+| `lcm_describe` | Get a summary with metadata for any stored summary node |
+| `lcm_expand` / `lcm_expand_query` | Recursively expand summaries back to source messages |
+| `memory_query` | Semantic search across all captured episodes and facts |
 
-```json
-{
-  "session": {
-    "reset": {
-      "mode": "idle",
-      "idleMinutes": 10080
-    }
-  }
-}
-```
+No configuration changes to your agent prompts. No new workflows to learn. The memory just works.
 
 ## Documentation
 
-- [Configuration guide](docs/configuration.md)
 - [Architecture](docs/architecture.md)
-- [Agent tools](docs/agent-tools.md)
+- [Configuration guide](docs/configuration.md)
+- [Agent tools reference](docs/agent-tools.md)
 - [TUI Reference](docs/tui.md)
 - [lcm-tui](tui/README.md)
 - [Optional: enable FTS5 for fast full-text search](docs/fts5.md)
@@ -192,7 +185,7 @@ For most long-lived LCM setups, a good starting point is:
 
 ```bash
 # Run tests
-npx vitest
+npm test
 
 # Type check
 npx tsc --noEmit
