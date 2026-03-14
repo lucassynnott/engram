@@ -1,5 +1,7 @@
 import type { DatabaseSync } from "node:sqlite";
 import { getLcmDbFeatures } from "./features.js";
+import { ensurePersonStore } from "../entity/person-service.js";
+import { ensureWorldModelStore } from "../entity/world-model.js";
 
 type SummaryColumnInfo = {
   name?: string;
@@ -495,6 +497,10 @@ export function runLcmMigrations(
   ensureSummaryMetadataColumns(db);
   backfillSummaryDepths(db);
   backfillSummaryMetadata(db);
+
+  // Entity graph tables (person-service + world-model)
+  ensurePersonStore(db);
+  ensureWorldModelStore(db);
 
   const fts5Available = options?.fts5Available ?? getLcmDbFeatures(db).fts5Available;
   if (!fts5Available) {
