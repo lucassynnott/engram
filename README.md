@@ -1,8 +1,18 @@
-# engram
+<p align="center">
+  <img src="assets/engram-logo.jpg" alt="Engram" width="200" />
+</p>
+
+<h1 align="center">Engram</h1>
+
+<p align="center">
+  <strong>Cyberpunk-grade memory for your OpenClaw agent — never forget, always recall.</strong>
+</p>
+
+---
 
 Unified memory and context engine plugin for [OpenClaw](https://github.com/openclaw/openclaw). Replaces OpenClaw's built-in sliding-window compaction with a DAG-based summarization system that preserves every message, adds pre-compaction fact extraction, and provides persistent cross-session memory for all your agents.
 
-Absorbs three previously separate projects: **Lossless Claw** (context management), **Gigabrain** (memory capture), and **OpenStinger** (cross-agent memory). One install, one config, one database.
+One install, one config, one database.
 
 ## Table of contents
 
