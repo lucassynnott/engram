@@ -1,4 +1,4 @@
-# openclaw-memory
+# engram
 
 Unified memory and context engine plugin for [OpenClaw](https://github.com/openclaw/openclaw). Replaces OpenClaw's built-in sliding-window compaction with a DAG-based summarization system that preserves every message, adds pre-compaction fact extraction, and provides persistent cross-session memory for all your agents.
 
@@ -16,7 +16,7 @@ Absorbs three previously separate projects: **Lossless Claw** (context managemen
 
 ## What it does
 
-When a conversation grows beyond the model's context window, OpenClaw normally truncates older messages. openclaw-memory instead:
+When a conversation grows beyond the model's context window, OpenClaw normally truncates older messages. engram instead:
 
 1. **Persists every message** in a local SQLite database, organized by conversation
 2. **Summarizes chunks** of older messages into summaries using your configured LLM
@@ -32,7 +32,7 @@ Nothing is lost. Raw messages stay in the database. Summaries link back to their
 
 ### Pre-compaction fact extraction
 
-Right before messages are compacted into summaries (a lossy operation), openclaw-memory scans them for durable signals: architectural decisions, stated preferences, named entities, key episodes. These are extracted with fast heuristics — no LLM call, no extra latency — and stored permanently with `source=pre_compaction`.
+Right before messages are compacted into summaries (a lossy operation), engram scans them for durable signals: architectural decisions, stated preferences, named entities, key episodes. These are extracted with fast heuristics — no LLM call, no extra latency — and stored permanently with `source=pre_compaction`.
 
 This is the critical difference from a simple summarization approach: durable facts survive even after the summaries containing them have been condensed or re-summarized. Your agent remembers things you said hours ago *specifically*, not vaguely.
 
@@ -47,19 +47,19 @@ This is the critical difference from a simple summarization approach: durable fa
 ### Install the plugin
 
 ```bash
-openclaw plugins install openclaw-memory
+openclaw plugins install engram
 ```
 
 If you're running from a local OpenClaw checkout:
 
 ```bash
-pnpm openclaw plugins install openclaw-memory
+pnpm openclaw plugins install engram
 ```
 
 For local plugin development, link your working copy:
 
 ```bash
-openclaw plugins install --link /path/to/openclaw-memory
+openclaw plugins install --link /path/to/engram
 ```
 
 The install command records the plugin, enables it, and wires it into the `contextEngine` slot automatically.
@@ -95,17 +95,17 @@ This keeps sessions alive across idle gaps so memory accumulates over weeks, not
 
 ## Configuration
 
-openclaw-memory is configured through plugin config or environment variables. Environment variables take precedence.
+engram is configured through plugin config or environment variables. Environment variables take precedence.
 
 ### Plugin config
 
-Add an `openclaw-memory` entry under `plugins.entries` in your OpenClaw config:
+Add an `engram` entry under `plugins.entries` in your OpenClaw config:
 
 ```json
 {
   "plugins": {
     "entries": {
-      "openclaw-memory": {
+      "engram": {
         "enabled": true,
         "config": {
           "freshTailCount": 32,
@@ -144,7 +144,7 @@ Add an `openclaw-memory` entry under `plugins.entries` in your OpenClaw config:
 
 ### OpenClaw session reset settings
 
-openclaw-memory preserves history through compaction, but it does **not** change OpenClaw's core session reset policy. If sessions are resetting sooner than you want, increase OpenClaw's `session.reset.idleMinutes` or use a channel/type-specific override.
+engram preserves history through compaction, but it does **not** change OpenClaw's core session reset policy. If sessions are resetting sooner than you want, increase OpenClaw's `session.reset.idleMinutes` or use a channel/type-specific override.
 
 ```json
 {

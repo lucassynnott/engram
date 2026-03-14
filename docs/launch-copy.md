@@ -4,11 +4,11 @@
 
 ---
 
-**🧠 openclaw-memory is out.**
+**🧠 engram is out.**
 
 If you're running OpenClaw agents in long sessions, you've hit this: the agent starts forgetting things you told it hours ago. Architectural decisions. Preferences you stated. Context from earlier in the session. It's gone because the context window filled up.
 
-openclaw-memory fixes this.
+engram fixes this.
 
 It's a single OpenClaw plugin that gives your agents:
 - **Lossless compaction** — every message stored in SQLite, summarized into a DAG, nothing discarded
@@ -18,7 +18,7 @@ It's a single OpenClaw plugin that gives your agents:
 
 One install:
 ```
-openclaw plugins install openclaw-memory
+openclaw plugins install engram
 ```
 
 Blog post with the full breakdown: [link]
@@ -36,7 +36,7 @@ Not a bug. Not a limitation you can fix with a longer system prompt. It's struct
 We built something about that.
 
 **Tweet 2:**
-openclaw-memory is an OpenClaw plugin that replaces sliding-window compaction with a DAG-based summarization system.
+engram is an OpenClaw plugin that replaces sliding-window compaction with a DAG-based summarization system.
 
 Every message stored. Summaries link to sources. Agents can search and expand back to raw messages from weeks ago.
 
@@ -52,7 +52,7 @@ Summaries are for context. Facts are for actual long-term memory.
 **Tweet 4:**
 Install:
 ```
-openclaw plugins install openclaw-memory
+openclaw plugins install engram
 ```
 
 Absorbs Lossless Claw + Gigabrain + OpenStinger into one plugin.
@@ -64,7 +64,7 @@ Full post: [link]
 
 ## Newsletter Blurb (Applied Leverage newsletter)
 
-**What we shipped: openclaw-memory**
+**What we shipped: engram**
 
 We spent the last two weeks consolidating three separate OpenClaw memory projects — Lossless Claw, Gigabrain, and OpenStinger — into a single unified plugin.
 
@@ -72,7 +72,7 @@ The headline feature is pre-compaction fact extraction: right before the plugin 
 
 The result: agents that feel like they genuinely remember things, not just agents that have a rough gist of what happened.
 
-Install in one command: `openclaw plugins install openclaw-memory`
+Install in one command: `openclaw plugins install engram`
 
 ---
 
@@ -86,7 +86,7 @@ Install in one command: `openclaw plugins install openclaw-memory`
 - "Every agent does this. Here's the fix."
 
 **Scene 2: Install (30 sec)**
-- `openclaw plugins install openclaw-memory`
+- `openclaw plugins install engram`
 - Show the plugin enabling, confirm it's wired to contextEngine slot
 
 **Scene 3: Memory in Action (2 min)**
@@ -102,5 +102,5 @@ Install in one command: `openclaw plugins install openclaw-memory`
 - "Shared memory pool — out of the box"
 
 **Scene 5: Call to Action (30 sec)**
-- `openclaw plugins install openclaw-memory`
+- `openclaw plugins install engram`
 - Link to GitHub repo / blog post

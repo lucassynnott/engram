@@ -1,6 +1,6 @@
 # Your AI Agent Has Been Quietly Forgetting Everything. Now It Doesn't Have to.
 
-*Introducing openclaw-memory — the plugin that captures what Claude knows before it forgets.*
+*Introducing engram — the plugin that captures what Claude knows before it forgets.*
 
 ---
 
@@ -10,17 +10,17 @@ Not summarizing it. Not compressing it smartly. **Throwing it away.** Claude, Co
 
 If you're running agents continuously — and if you're doing serious AI-assisted development, you probably are — this is a real problem. It's the hidden tax on every long session.
 
-**openclaw-memory eliminates it.**
+**engram eliminates it.**
 
 ---
 
 ## What It Does
 
-openclaw-memory is an OpenClaw plugin that gives your agents persistent, searchable memory across their entire session lifetime. It replaces OpenClaw's default sliding-window compaction with three interlocking systems:
+engram is an OpenClaw plugin that gives your agents persistent, searchable memory across their entire session lifetime. It replaces OpenClaw's default sliding-window compaction with three interlocking systems:
 
 ### 1. DAG-Based Lossless Compaction
 
-Instead of dropping old messages when context gets full, openclaw-memory:
+Instead of dropping old messages when context gets full, engram:
 
 1. **Persists every message** in a local SQLite database
 2. **Summarizes chunks** of older messages using your configured LLM
@@ -34,7 +34,7 @@ In practice: your agent feels like it never forgets. Because it doesn't.
 
 ### 2. Pre-Compaction Fact Extraction *(the killer feature)*
 
-Here's what makes openclaw-memory different from every other memory solution.
+Here's what makes engram different from every other memory solution.
 
 Right before messages get compacted into summaries, the plugin scans them for **durable facts**: entities, decisions, preferences, episodes. These are extracted using fast heuristics — no LLM call, no extra latency, under 500ms — and stored with `source=pre_compaction`.
 
@@ -46,7 +46,7 @@ This is why we call it the killer feature. Summaries are for context assembly. F
 
 ### 3. Gigabrain-Style Capture Pipeline
 
-Beyond compaction, openclaw-memory ships with a full Gigabrain-compatible memory capture system:
+Beyond compaction, engram ships with a full Gigabrain-compatible memory capture system:
 
 - **Episode storage** — meaningful events captured as discrete memory entries
 - **Quality gates** — filters out noise before storage
@@ -72,7 +72,7 @@ All of that is conversational context. In a normal session, it's fine — the ag
 
 Pre-compaction extraction says: before we summarize this, let's extract the signals that are too important to lose. Store them directly. Make them permanently queryable.
 
-This is what gives openclaw-memory sessions their distinctive feel: the agent remembers things you said hours ago *specifically*, not vaguely.
+This is what gives engram sessions their distinctive feel: the agent remembers things you said hours ago *specifically*, not vaguely.
 
 ---
 
@@ -87,13 +87,13 @@ This is what gives openclaw-memory sessions their distinctive feel: the agent re
 ### One command
 
 ```bash
-openclaw plugins install openclaw-memory
+openclaw plugins install engram
 ```
 
 If you're running from a local OpenClaw checkout:
 
 ```bash
-pnpm openclaw plugins install openclaw-memory
+pnpm openclaw plugins install engram
 ```
 
 That's it. The installer records the plugin, enables it, and automatically wires it into the `contextEngine` slot.
@@ -130,7 +130,7 @@ This keeps sessions alive across idle gaps so memory accumulates over weeks, not
 ### Local development
 
 ```bash
-openclaw plugins install --link /path/to/openclaw-memory
+openclaw plugins install --link /path/to/engram
 ```
 
 ---
@@ -155,7 +155,7 @@ No configuration changes to your agent prompts. No new workflows to learn. The m
 
 ## Under the Hood
 
-openclaw-memory is built on:
+engram is built on:
 
 - **SQLite** (via `better-sqlite3`) for zero-dependency local storage
 - **DAG-based summary tree** — each summary links to its sources, condensed summaries link to leaf summaries, all the way down to raw messages
@@ -169,13 +169,13 @@ The plugin absorbs three previously separate projects: Lossless Claw (context ma
 ## Get It
 
 ```bash
-openclaw plugins install openclaw-memory
+openclaw plugins install engram
 ```
 
-Source code, docs, and configuration reference: [github.com/applied-leverage/openclaw-memory](https://github.com/applied-leverage/openclaw-memory)
+Source code, docs, and configuration reference: [github.com/applied-leverage/engram](https://github.com/applied-leverage/engram)
 
 Full documentation: see `docs/` in the repo — architecture, configuration guide, agent tools reference, TUI reference.
 
 ---
 
-*openclaw-memory is built by Applied Leverage. If you're running OpenClaw agents at scale and want to talk about what we're building, reach out.*
+*engram is built by Applied Leverage. If you're running OpenClaw agents at scale and want to talk about what we're building, reach out.*

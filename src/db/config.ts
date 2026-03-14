@@ -24,6 +24,25 @@ export type LcmConfig = {
   timezone: string;
   /** When true, retroactively delete HEARTBEAT_OK turn cycles from LCM storage. */
   pruneHeartbeatOk: boolean;
+  // ── Vault / Obsidian mirror ────────────────────────────────────────────────
+  /** When true, vault mirror generation is enabled. Default: false. */
+  vaultEnabled: boolean;
+  /** Absolute path to the Obsidian vault root directory. Required when vaultEnabled. */
+  vaultPath: string;
+  /** Sub-directory inside the vault root where generated files live. Default: "Engram". */
+  vaultSubdir: string;
+  /** Name for the home note file (without .md extension). Default: "Home". */
+  vaultHomeNoteName: string;
+  /** Comma-separated list of manually managed folders to protect from cleanup. Default: "Inbox,Manual". */
+  vaultManualFolders: string;
+  /** When true, remove stale generated files on each build. Default: true. */
+  vaultClean: boolean;
+  /** When true, write report files (manifest, freshness, build summary). Default: true. */
+  vaultReportsEnabled: boolean;
+  /** Obsidian surface mode: "curated" (condensed summaries only) or "diagnostic" (full DAG). Default: "curated". */
+  obsidianMode: string;
+  /** When true, export diagnostic views (summary depth, raw leaf list). Default: false. */
+  obsidianExportDiagnostics: boolean;
 };
 
 /** Safely coerce an unknown value to a finite number, or return undefined. */
@@ -123,5 +142,31 @@ export function resolveLcmConfig(
       env.LCM_PRUNE_HEARTBEAT_OK !== undefined
         ? env.LCM_PRUNE_HEARTBEAT_OK === "true"
         : toBool(pc.pruneHeartbeatOk) ?? false,
+    vaultEnabled:
+      env.LCM_VAULT_ENABLED !== undefined
+        ? env.LCM_VAULT_ENABLED === "true"
+        : toBool(pc.vaultEnabled) ?? false,
+    vaultPath:
+      env.LCM_VAULT_PATH?.trim() ?? toStr(pc.vaultPath) ?? "",
+    vaultSubdir:
+      env.LCM_VAULT_SUBDIR?.trim() ?? toStr(pc.vaultSubdir) ?? "Engram",
+    vaultHomeNoteName:
+      env.LCM_VAULT_HOME_NOTE_NAME?.trim() ?? toStr(pc.vaultHomeNoteName) ?? "Home",
+    vaultManualFolders:
+      env.LCM_VAULT_MANUAL_FOLDERS?.trim() ?? toStr(pc.vaultManualFolders) ?? "Inbox,Manual",
+    vaultClean:
+      env.LCM_VAULT_CLEAN !== undefined
+        ? env.LCM_VAULT_CLEAN !== "false"
+        : toBool(pc.vaultClean) ?? true,
+    vaultReportsEnabled:
+      env.LCM_VAULT_REPORTS_ENABLED !== undefined
+        ? env.LCM_VAULT_REPORTS_ENABLED !== "false"
+        : toBool(pc.vaultReportsEnabled) ?? true,
+    obsidianMode:
+      env.LCM_OBSIDIAN_MODE?.trim() ?? toStr(pc.obsidianMode) ?? "curated",
+    obsidianExportDiagnostics:
+      env.LCM_OBSIDIAN_EXPORT_DIAGNOSTICS !== undefined
+        ? env.LCM_OBSIDIAN_EXPORT_DIAGNOSTICS === "true"
+        : toBool(pc.obsidianExportDiagnostics) ?? false,
   };
 }

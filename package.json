@@ -1,5 +1,5 @@
 {
-  "name": "openclaw-memory",
+  "name": "@applied-leverage/engram",
   "version": "0.1.0",
   "description": "Unified memory and context engine plugin for OpenClaw — absorbs Lossless Claw, Gigabrain, and OpenStinger into a single plugin",
   "type": "module",

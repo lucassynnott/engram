@@ -13,6 +13,8 @@ import { createLcmDescribeTool } from "./src/surface/lcm-describe-tool.js";
 import { createLcmExpandQueryTool } from "./src/surface/lcm-expand-query-tool.js";
 import { createLcmExpandTool } from "./src/surface/lcm-expand-tool.js";
 import { createLcmGrepTool } from "./src/surface/lcm-grep-tool.js";
+import { createMemoryAddTool } from "./src/surface/memory-add-tool.js";
+import { createLcmHttpHandler } from "./src/surface/http-routes.js";
 import type { LcmDependencies } from "./src/types.js";
 
 /** Parse `agent:<agentId>:<suffix...>` session keys. */
@@ -1286,6 +1288,17 @@ const lcmPlugin = {
     const lcm = new LcmContextEngine(deps);
 
     api.registerContextEngine("lossless-claw", () => lcm);
+
+    // Register web-console HTTP routes at /memory/*
+    const gatewayToken = String(
+      (api.config as Record<string, unknown> & { gateway?: { auth?: { token?: string } } })
+        ?.gateway?.auth?.token ?? "",
+    ).trim();
+    const lcmHttpHandler = createLcmHttpHandler({
+      config: deps.config,
+      gatewayToken: gatewayToken || undefined,
+    });
+    api.registerHttpHandler(lcmHttpHandler);
     api.registerTool((ctx) =>
       createLcmGrepTool({
         deps,
@@ -1316,6 +1329,8 @@ const lcmPlugin = {
       }),
     );
 
+    api.registerTool(() => createMemoryAddTool({ config: deps.config }));
+
     api.logger.info(
       `[lcm] Plugin loaded (enabled=${deps.config.enabled}, db=${deps.config.databasePath}, threshold=${deps.config.contextThreshold})`,
     );
@@ -1323,3 +1338,20 @@ const lcmPlugin = {
 };
 
 export default lcmPlugin;
+
+// ── Vault mirror exports ──────────────────────────────────────────────────────
+export {
+  buildVaultSurface,
+  inspectVaultHealth,
+  loadSurfaceSummary,
+  renderVaultBuildMarkdown,
+  renderVaultDoctorMarkdown,
+  syncVaultPull,
+} from "./src/surface/vault-mirror.js";
+export type {
+  VaultBuildSummary,
+  VaultFreshness,
+  VaultHealthReport,
+  VaultManifest,
+  VaultPullResult,
+} from "./src/surface/vault-mirror.js";

@@ -1,3 +1,4 @@
+import type { DatabaseSync } from "node:sqlite";
 import type { ConversationStore } from "../memory/store/conversation-store.js";
 import type {
   SummaryStore,
@@ -77,6 +78,12 @@ export class IntegrityChecker {
 
     // 8. no_duplicate_context_refs
     checks.push(await this.checkNoDuplicateContextRefs(conversationId));
+
+    // 9. no_cyclic_summaries
+    checks.push(await this.checkNoCyclicSummaries(conversationId));
+
+    // 10. summary_depth_consistency (post-migration validation)
+    checks.push(await this.checkSummaryDepthConsistency(conversationId));
 
     const passCount = checks.filter((c) => c.status === "pass").length;
     const failCount = checks.filter((c) => c.status === "fail").length;
@@ -429,6 +436,154 @@ export class IntegrityChecker {
       details: { duplicates },
     };
   }
+
+  private async checkNoCyclicSummaries(
+    conversationId: number,
+  ): Promise<IntegrityCheck> {
+    const summaries =
+      await this.summaryStore.getSummariesByConversation(conversationId);
+    if (summaries.length === 0) {
+      return {
+        name: "no_cyclic_summaries",
+        status: "pass",
+        message: "No summaries to check for cycles",
+      };
+    }
+
+    // Build adjacency map: summaryId → parent summary IDs
+    const adjacency = new Map<string, string[]>();
+    for (const summary of summaries) {
+      const parents = await this.summaryStore.getSummaryParents(
+        summary.summaryId,
+      );
+      adjacency.set(
+        summary.summaryId,
+        parents.map((p) => p.summaryId),
+      );
+    }
+
+    // Iterative DFS with white/gray/black coloring to detect back edges
+    const WHITE = 0,
+      GRAY = 1,
+      BLACK = 2;
+    const color = new Map<string, number>();
+    for (const summary of summaries) {
+      color.set(summary.summaryId, WHITE);
+    }
+
+    const cycleEdges: { summaryId: string; parentSummaryId: string }[] = [];
+
+    const dfs = (startId: string) => {
+      const stack: { nodeId: string; parentIter: number }[] = [
+        { nodeId: startId, parentIter: 0 },
+      ];
+      color.set(startId, GRAY);
+
+      while (stack.length > 0) {
+        const frame = stack[stack.length - 1];
+        const parents = adjacency.get(frame.nodeId) ?? [];
+
+        if (frame.parentIter >= parents.length) {
+          color.set(frame.nodeId, BLACK);
+          stack.pop();
+          continue;
+        }
+
+        const parentId = parents[frame.parentIter++];
+        if (!color.has(parentId)) {
+          // node not in this conversation — skip
+          continue;
+        }
+
+        const parentColor = color.get(parentId)!;
+        if (parentColor === GRAY) {
+          // Back edge — cycle detected
+          cycleEdges.push({
+            summaryId: frame.nodeId,
+            parentSummaryId: parentId,
+          });
+        } else if (parentColor === WHITE) {
+          color.set(parentId, GRAY);
+          stack.push({ nodeId: parentId, parentIter: 0 });
+        }
+      }
+    };
+
+    for (const summary of summaries) {
+      if (color.get(summary.summaryId) === WHITE) {
+        dfs(summary.summaryId);
+      }
+    }
+
+    if (cycleEdges.length === 0) {
+      return {
+        name: "no_cyclic_summaries",
+        status: "pass",
+        message: `Summary DAG is acyclic (${summaries.length} summaries checked)`,
+      };
+    }
+
+    return {
+      name: "no_cyclic_summaries",
+      status: "fail",
+      message: `Found ${cycleEdges.length} cycle edge(s) in summary parent DAG`,
+      details: { cycleEdges },
+    };
+  }
+
+  private async checkSummaryDepthConsistency(
+    conversationId: number,
+  ): Promise<IntegrityCheck> {
+    const summaries =
+      await this.summaryStore.getSummariesByConversation(conversationId);
+    if (summaries.length === 0) {
+      return {
+        name: "summary_depth_consistency",
+        status: "pass",
+        message: "No summaries to check",
+      };
+    }
+
+    const inconsistent: {
+      summaryId: string;
+      kind: string;
+      depth: number;
+      issue: string;
+    }[] = [];
+
+    for (const summary of summaries) {
+      if (summary.kind === "leaf" && summary.depth !== 0) {
+        inconsistent.push({
+          summaryId: summary.summaryId,
+          kind: "leaf",
+          depth: summary.depth,
+          issue: `leaf summary must have depth=0, got depth=${summary.depth}`,
+        });
+      } else if (summary.kind === "condensed" && summary.depth === 0) {
+        inconsistent.push({
+          summaryId: summary.summaryId,
+          kind: "condensed",
+          depth: summary.depth,
+          issue: "condensed summary must have depth > 0",
+        });
+      }
+    }
+
+    if (inconsistent.length === 0) {
+      return {
+        name: "summary_depth_consistency",
+        status: "pass",
+        message: `All ${summaries.length} summaries have consistent depth values`,
+      };
+    }
+
+    return {
+      name: "summary_depth_consistency",
+      status: "fail",
+      message: `Found ${inconsistent.length} summary/summaries with inconsistent depth`,
+      details: { inconsistent },
+    };
+  }
 }
 
 // ── repairPlan ────────────────────────────────────────────────────────────────
@@ -548,6 +703,48 @@ export function repairPlan(report: IntegrityReport): string[] {
         break;
       }
 
+      case "no_cyclic_summaries": {
+        const details = check.details as {
+          cycleEdges: { summaryId: string; parentSummaryId: string }[];
+        } | undefined;
+        if (details?.cycleEdges) {
+          for (const edge of details.cycleEdges) {
+            suggestions.push(
+              `Break cycle: remove parent link from summary ${edge.summaryId} to ${edge.parentSummaryId} in summary_parents`,
+            );
+          }
+        } else {
+          suggestions.push(
+            "Remove parent edges that form cycles in the summary DAG",
+          );
+        }
+        break;
+      }
+
+      case "summary_depth_consistency": {
+        const details = check.details as {
+          inconsistent: { summaryId: string; kind: string; depth: number; issue: string }[];
+        } | undefined;
+        if (details?.inconsistent) {
+          for (const entry of details.inconsistent) {
+            if (entry.kind === "leaf") {
+              suggestions.push(
+                `Reset depth to 0 for leaf summary ${entry.summaryId} (currently depth=${entry.depth})`,
+              );
+            } else {
+              suggestions.push(
+                `Set depth > 0 for condensed summary ${entry.summaryId} based on parent lineage`,
+              );
+            }
+          }
+        } else {
+          suggestions.push(
+            "Recompute depth values for summaries with inconsistent depth",
+          );
+        }
+        break;
+      }
+
       default:
         suggestions.push(`Address failing check: ${check.name} -- ${check.message}`);
         break;
@@ -597,4 +794,131 @@ export async function collectMetrics(
     largeFileCount: largeFiles.length,
     collectedAt: new Date(),
   };
+}
+
+// ── RepairEngine ──────────────────────────────────────────────────────────────
+
+/**
+ * Executes actual repairs against the database based on integrity report findings.
+ * Unlike `repairPlan`, which only generates human-readable suggestions, RepairEngine
+ * performs mutations. All operations are idempotent where possible.
+ */
+export class RepairEngine {
+  constructor(
+    private db: DatabaseSync,
+    private conversationStore: ConversationStore,
+    private summaryStore: SummaryStore,
+  ) {}
+
+  /**
+   * Remove context items whose referenced messages or summaries no longer exist.
+   * Automatically resequences ordinals after removal.
+   * Returns the number of dangling items removed.
+   */
+  async removeDanglingContextItems(conversationId: number): Promise<number> {
+    const items = await this.summaryStore.getContextItems(conversationId);
+    let removed = 0;
+
+    for (const item of items) {
+      let isDangling = false;
+      if (item.itemType === "message" && item.messageId != null) {
+        const msg = await this.conversationStore.getMessageById(item.messageId);
+        if (!msg) isDangling = true;
+      } else if (item.itemType === "summary" && item.summaryId != null) {
+        const sum = await this.summaryStore.getSummary(item.summaryId);
+        if (!sum) isDangling = true;
+      }
+
+      if (isDangling) {
+        this.db
+          .prepare(
+            `DELETE FROM context_items WHERE conversation_id = ? AND ordinal = ?`,
+          )
+          .run(conversationId, item.ordinal);
+        removed++;
+      }
+    }
+
+    if (removed > 0) {
+      await this.resequenceContextItems(conversationId);
+    }
+
+    return removed;
+  }
+
+  /**
+   * Delete summaries that are not referenced by context_items and not parents
+   * of any other summary. Returns the number of orphans removed.
+   */
+  async removeOrphanSummaries(conversationId: number): Promise<number> {
+    const summaries =
+      await this.summaryStore.getSummariesByConversation(conversationId);
+    const contextItems = await this.summaryStore.getContextItems(conversationId);
+
+    const contextSummaryIds = new Set(
+      contextItems
+        .filter((ci) => ci.itemType === "summary" && ci.summaryId != null)
+        .map((ci) => ci.summaryId as string),
+    );
+
+    const parentSummaryIds = new Set<string>();
+    for (const summary of summaries) {
+      const children = await this.summaryStore.getSummaryChildren(
+        summary.summaryId,
+      );
+      if (children.length > 0) {
+        parentSummaryIds.add(summary.summaryId);
+      }
+    }
+
+    let removed = 0;
+    for (const summary of summaries) {
+      if (
+        !contextSummaryIds.has(summary.summaryId) &&
+        !parentSummaryIds.has(summary.summaryId)
+      ) {
+        this.db
+          .prepare(`DELETE FROM summaries WHERE summary_id = ?`)
+          .run(summary.summaryId);
+        removed++;
+      }
+    }
+
+    return removed;
+  }
+
+  /**
+   * Resequence context item ordinals to be contiguous starting from 0.
+   * Uses a two-pass approach (negative temp ordinals) to avoid unique constraint conflicts.
+   */
+  async resequenceContextItems(conversationId: number): Promise<void> {
+    const items = await this.summaryStore.getContextItems(conversationId);
+    if (items.length === 0) return;
+
+    const updateStmt = this.db.prepare(
+      `UPDATE context_items SET ordinal = ? WHERE conversation_id = ? AND ordinal = ?`,
+    );
+
+    // Pass 1: move to negative temp ordinals to avoid conflicts
+    for (let i = 0; i < items.length; i++) {
+      updateStmt.run(-(i + 1), conversationId, items[i].ordinal);
+    }
+    // Pass 2: move from temp ordinals to final 0-based positions
+    for (let i = 0; i < items.length; i++) {
+      updateStmt.run(i, conversationId, -(i + 1));
+    }
+  }
+
+  /**
+   * Remove a specific parent edge from the summary DAG to break a detected cycle.
+   * Use the `cycleEdges` details from a `no_cyclic_summaries` check to identify
+   * which edges to remove.
+   */
+  breakSummaryCycleEdge(summaryId: string, parentSummaryId: string): void {
+    this.db
+      .prepare(
+        `DELETE FROM summary_parents WHERE summary_id = ? AND parent_summary_id = ?`,
+      )
+      .run(summaryId, parentSummaryId);
+  }
 }

@@ -1,32 +1,124 @@
 {
-  "id": "openclaw-memory",
-  "displayName": "OpenClaw Memory",
+  "id": "engram",
+  "displayName": "Engram",
   "description": "Unified memory and context engine for OpenClaw — DAG-based summarization, retrieval, and sub-agent expansion",
   "version": "0.1.0",
   "uiHints": {
+    "enabled": {
+      "label": "Enabled",
+      "help": "Enable or disable the LCM context engine (disabling falls back to OpenClaw built-in compaction)"
+    },
     "contextThreshold": {
       "label": "Context Threshold",
-      "help": "Fraction of context window that triggers compaction (0.0–1.0)"
-    },
-    "incrementalMaxDepth": {
-      "label": "Incremental Max Depth",
-      "help": "How deep incremental compaction goes (0 = leaf only, -1 = unlimited)"
+      "help": "Fraction of context window that triggers compaction (0.0–1.0). Default: 0.75"
     },
     "freshTailCount": {
       "label": "Fresh Tail Count",
-      "help": "Number of recent messages protected from compaction"
+      "help": "Number of recent messages protected from compaction. Default: 32"
+    },
+    "incrementalMaxDepth": {
+      "label": "Incremental Max Depth",
+      "help": "How deep incremental compaction goes after each leaf pass (0 = leaf only, -1 = unlimited). Default: 0"
+    },
+    "leafMinFanout": {
+      "label": "Leaf Min Fanout",
+      "help": "Minimum raw messages outside the fresh tail before a leaf summary pass runs. Default: 8"
+    },
+    "condensedMinFanout": {
+      "label": "Condensed Min Fanout",
+      "help": "Minimum same-depth summaries before condensation into a higher-level summary. Default: 4"
+    },
+    "condensedMinFanoutHard": {
+      "label": "Condensed Min Fanout (Hard)",
+      "help": "Hard minimum for condensed fanout; overflows condense regardless of soft limit. Default: 2"
+    },
+    "leafChunkTokens": {
+      "label": "Leaf Chunk Tokens",
+      "help": "Maximum tokens of source material fed into a single leaf compaction pass. Default: 20000"
+    },
+    "leafTargetTokens": {
+      "label": "Leaf Target Tokens",
+      "help": "Target token size for leaf (raw-message) summaries. Default: 1200"
+    },
+    "condensedTargetTokens": {
+      "label": "Condensed Target Tokens",
+      "help": "Target token size for condensed (higher-level) summaries. Default: 2000"
+    },
+    "maxExpandTokens": {
+      "label": "Max Expand Tokens",
+      "help": "Maximum tokens to expand from a summary node during sub-agent expansion. Default: 4000"
     },
     "dbPath": {
       "label": "Database Path",
-      "help": "Path to memory SQLite database (default: ~/.openclaw/lcm.db)"
+      "help": "Path to the LCM SQLite database file. Default: ~/.openclaw/lcm.db"
+    },
+    "largeFileThresholdTokens": {
+      "label": "Large File Threshold (tokens)",
+      "help": "Token count above which a file is considered 'large' and summarized before storage. Default: 25000"
     },
     "summaryModel": {
       "label": "Summary Model",
-      "help": "Model override for summarization (e.g., 'gpt-5.4' or 'openai-resp/gpt-5.4')"
+      "help": "Model override for main conversation summarization (e.g., 'claude-haiku-4-5-20251001')"
     },
     "summaryProvider": {
       "label": "Summary Provider",
-      "help": "Provider override for summarization (e.g., 'openai-resp')"
+      "help": "Provider override for main conversation summarization (e.g., 'anthropic')"
+    },
+    "largeFileSummaryModel": {
+      "label": "Large-File Summary Model",
+      "help": "Model override specifically for large-file text summarization. Falls back to summaryModel if unset."
+    },
+    "largeFileSummaryProvider": {
+      "label": "Large-File Summary Provider",
+      "help": "Provider override specifically for large-file text summarization. Falls back to summaryProvider if unset."
+    },
+    "autocompactDisabled": {
+      "label": "Disable Auto-Compaction",
+      "help": "When true, automatic compaction is disabled; use /compact manually. Default: false"
+    },
+    "timezone": {
+      "label": "Timezone",
+      "help": "IANA timezone for timestamps in summaries (e.g., 'America/Los_Angeles'). Default: system timezone"
+    },
+    "pruneHeartbeatOk": {
+      "label": "Prune Heartbeat-OK Turns",
+      "help": "When true, retroactively removes HEARTBEAT_OK turn cycles from LCM storage to reduce noise. Default: false"
+    },
+    "vaultEnabled": {
+      "label": "Vault Enabled",
+      "help": "Enable Obsidian vault surface generation. Default: false"
+    },
+    "vaultPath": {
+      "label": "Vault Path",
+      "help": "Absolute path to the Obsidian vault root directory. Required when vault is enabled."
+    },
+    "vaultSubdir": {
+      "label": "Vault Subdirectory",
+      "help": "Sub-directory inside the vault root where generated files are written. Default: 'Engram'"
+    },
+    "vaultHomeNoteName": {
+      "label": "Home Note Name",
+      "help": "Name for the vault home note (without .md extension). Default: 'Home'"
+    },
+    "vaultManualFolders": {
+      "label": "Manual Folders",
+      "help": "Comma-separated list of manually managed folders protected from cleanup. Default: 'Inbox,Manual'"
+    },
+    "vaultClean": {
+      "label": "Clean Stale Files",
+      "help": "Remove stale generated files on each vault build. Default: true"
+    },
+    "vaultReportsEnabled": {
+      "label": "Reports Enabled",
+      "help": "Write report files (manifest, freshness, build summary) on each build. Default: true"
+    },
+    "obsidianMode": {
+      "label": "Obsidian Mode",
+      "help": "Surface mode: 'curated' shows only condensed summaries; 'diagnostic' includes full DAG detail. Default: 'curated'"
+    },
+    "obsidianExportDiagnostics": {
+      "label": "Export Diagnostics",
+      "help": "When true, export diagnostic views (summary depth distribution, raw leaf list). Default: false"
     }
   },
   "configSchema": {
@@ -34,45 +126,126 @@
     "additionalProperties": false,
     "properties": {
       "enabled": {
-        "type": "boolean"
+        "type": "boolean",
+        "default": true
       },
       "contextThreshold": {
         "type": "number",
         "minimum": 0,
-        "maximum": 1
-      },
-      "incrementalMaxDepth": {
-        "type": "integer",
-        "minimum": -1
+        "maximum": 1,
+        "default": 0.75
       },
       "freshTailCount": {
         "type": "integer",
-        "minimum": 1
+        "minimum": 1,
+        "default": 32
+      },
+      "incrementalMaxDepth": {
+        "type": "integer",
+        "minimum": -1,
+        "default": 0
       },
       "leafMinFanout": {
         "type": "integer",
-        "minimum": 2
+        "minimum": 2,
+        "default": 8
       },
       "condensedMinFanout": {
         "type": "integer",
-        "minimum": 2
+        "minimum": 2,
+        "default": 4
       },
       "condensedMinFanoutHard": {
         "type": "integer",
-        "minimum": 2
+        "minimum": 2,
+        "default": 2
+      },
+      "leafChunkTokens": {
+        "type": "integer",
+        "minimum": 1000,
+        "default": 20000
+      },
+      "leafTargetTokens": {
+        "type": "integer",
+        "minimum": 100,
+        "default": 1200
+      },
+      "condensedTargetTokens": {
+        "type": "integer",
+        "minimum": 100,
+        "default": 2000
+      },
+      "maxExpandTokens": {
+        "type": "integer",
+        "minimum": 100,
+        "default": 4000
       },
       "dbPath": {
         "type": "string"
       },
       "largeFileThresholdTokens": {
         "type": "integer",
-        "minimum": 1000
+        "minimum": 1000,
+        "default": 25000
       },
       "summaryModel": {
         "type": "string"
       },
       "summaryProvider": {
         "type": "string"
+      },
+      "largeFileSummaryModel": {
+        "type": "string"
+      },
+      "largeFileSummaryProvider": {
+        "type": "string"
+      },
+      "autocompactDisabled": {
+        "type": "boolean",
+        "default": false
+      },
+      "timezone": {
+        "type": "string"
+      },
+      "pruneHeartbeatOk": {
+        "type": "boolean",
+        "default": false
+      },
+      "vaultEnabled": {
+        "type": "boolean",
+        "default": false
+      },
+      "vaultPath": {
+        "type": "string"
+      },
+      "vaultSubdir": {
+        "type": "string",
+        "default": "Engram"
+      },
+      "vaultHomeNoteName": {
+        "type": "string",
+        "default": "Home"
+      },
+      "vaultManualFolders": {
+        "type": "string",
+        "default": "Inbox,Manual"
+      },
+      "vaultClean": {
+        "type": "boolean",
+        "default": true
+      },
+      "vaultReportsEnabled": {
+        "type": "boolean",
+        "default": true
+      },
+      "obsidianMode": {
+        "type": "string",
+        "enum": ["curated", "diagnostic"],
+        "default": "curated"
+      },
+      "obsidianExportDiagnostics": {
+        "type": "boolean",
+        "default": false
       }
     }
   }
