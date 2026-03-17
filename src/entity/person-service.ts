@@ -20,7 +20,7 @@ const normalizeContent = (value: unknown): string => {
 // ---------------------------------------------------------------------------
 
 const RELATIONSHIP_RE =
-  /\b(?:partner(?:in)?|wife|husband|girlfriend|boyfriend|friend|best friend|relationship|lebt zusammen|live together|dating|date)\b/i;
+  /\b(?:partner(?:in)?|wife|husband|girlfriend|boyfriend|friend|best friend|relationship|lebt zusammen|live together|dating|date|freund(?:in)?)\b/i;
 const PUBLIC_PROFILE_RE =
   /\b(?:tedx|coach|coaching|speaker|life coaching|beratung|berater(?:in)?|sozialarbeiter(?:in)?|lebens(?:-|\s+und\s+)sozialberater(?:in)?)\b/i;
 const OPS_NOISE_RE = /\b(?:script|pipeline|cron|review|migration|deploy|run|todo|worker)\b/i;
@@ -197,9 +197,13 @@ export const scorePersonContent = ({
   entityKeys = [],
   config = {},
 }: ScorePersonContentOptions = {}): PersonContentScore | null => {
-  const keys = Array.isArray(entityKeys)
+  let keys = Array.isArray(entityKeys)
     ? entityKeys.map((item) => normalizeContent(item)).filter(Boolean)
     : [];
+  // Auto-detect entity candidates from content if no keys provided
+  if (keys.length === 0) {
+    keys = splitNameCandidates(content);
+  }
   if (keys.length === 0) return null;
   let matched = false;
   for (const key of keys) {

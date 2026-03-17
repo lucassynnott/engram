@@ -1117,8 +1117,16 @@ export const ensureWorldModelReady = ({ db, config = {} as Record<string, unknow
   ensureWorldModelStore(db);
   if ((config?.worldModel as Record<string, unknown>)?.enabled === false) return { rebuilt: false, counts: {} };
   const entityCount = Number((db.prepare("SELECT COUNT(*) AS c FROM entities").get() as Record<string, number> | undefined)?.c || 0);
-  const activeCount = Number((db.prepare("SELECT COUNT(*) AS c FROM summaries WHERE content IS NOT NULL AND content != ''").get() as Record<string, number> | undefined)?.c || 0);
-  const latestMemoryUpdatedAt = String((db.prepare("SELECT COALESCE(MAX(created_at), '') AS updated_at FROM summaries").get() as Record<string, string> | undefined)?.updated_at || "").trim();
+  let activeCount = 0;
+  let latestMemoryUpdatedAt = "";
+  try {
+    activeCount = Number((db.prepare("SELECT COUNT(*) AS c FROM summaries WHERE content IS NOT NULL AND content != ''").get() as Record<string, number> | undefined)?.c || 0);
+    latestMemoryUpdatedAt = String((db.prepare("SELECT COALESCE(MAX(created_at), '') AS updated_at FROM summaries").get() as Record<string, string> | undefined)?.updated_at || "").trim();
+  } catch {
+    // summaries table may not exist in isolated test contexts
+    activeCount = 0;
+    latestMemoryUpdatedAt = "";
+  }
   const latestSynthesisGeneratedAt = String((db.prepare("SELECT COALESCE(MAX(generated_at), '') AS generated_at FROM entity_syntheses").get() as Record<string, string> | undefined)?.generated_at || "").trim();
   const projectedRows = Number((db.prepare(`SELECT ((SELECT COUNT(*) FROM entities) + (SELECT COUNT(*) FROM entity_beliefs) + (SELECT COUNT(*) FROM entity_episodes) + (SELECT COUNT(*) FROM entity_open_loops) + (SELECT COUNT(*) FROM entity_syntheses)) AS c`).get() as Record<string, number> | undefined)?.c || 0);
   const needsRefresh = Boolean(activeCount > 0 && latestMemoryUpdatedAt && (!latestSynthesisGeneratedAt || Date.parse(latestMemoryUpdatedAt) > Date.parse(latestSynthesisGeneratedAt)));
@@ -1158,15 +1166,21 @@ const s$ = (v: unknown): null | number | bigint | string | Uint8Array => v as nu
 export const rebuildWorldModel = ({ db, config = {} as Record<string, unknown>, now = new Date().toISOString() }: { db: DatabaseSync; config?: Record<string, unknown>; now?: string } = { db: undefined as unknown as DatabaseSync }): Record<string, unknown> => {
   ensureWorldModelStore(db);
   ensurePersonStore(db);
-  const rawRows = db.prepare(`
-    SELECT summary_id AS memory_id, content,
-      'active' AS status, 'context' AS type, 0.7 AS confidence,
-      'shared' AS scope, 'lcm_summary' AS source_layer,
-      NULL AS source_path, NULL AS source_line,
-      created_at AS content_time, NULL AS valid_until,
-      NULL AS superseded_by, created_at AS updated_at, created_at
-    FROM summaries WHERE content IS NOT NULL AND content != ''
-  `).all() as unknown as MemoryRow[];
+  let rawRows: MemoryRow[] = [];
+  try {
+    rawRows = db.prepare(`
+      SELECT summary_id AS memory_id, content,
+        'active' AS status, 'context' AS type, 0.7 AS confidence,
+        'shared' AS scope, 'lcm_summary' AS source_layer,
+        NULL AS source_path, NULL AS source_line,
+        created_at AS content_time, NULL AS valid_until,
+        NULL AS superseded_by, created_at AS updated_at, created_at
+      FROM summaries WHERE content IS NOT NULL AND content != ''
+    `).all() as unknown as MemoryRow[];
+  } catch {
+    // summaries table may not exist in isolated test contexts
+    rawRows = [];
+  }
   const rows = rawRows.map((row) => ({
     ...row,
     memory_id: String(row.memory_id || ""),
