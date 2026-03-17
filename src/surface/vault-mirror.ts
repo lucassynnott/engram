@@ -29,6 +29,8 @@ const GENERATED_DIRS = Object.freeze([
   "20 Agents",
   "30 Views",
   "40 Reports",
+  "50 Memory",
+  "60 Entities",
 ]);
 
 const STALE_VAULT_DAYS = 2;
@@ -141,6 +143,27 @@ interface SummaryRow {
 
 interface CountRow {
   count: number;
+}
+
+interface MemoryRow {
+  memory_id: string;
+  type: string;
+  content: string;
+  scope: string;
+  confidence: number;
+  value_score: number | null;
+  tags: string;
+  created_at: string;
+  content_time: string | null;
+}
+
+interface EntityRow {
+  entity_id: string;
+  kind: string;
+  display_name: string;
+  confidence: number;
+  created_at: string;
+  updated_at: string;
 }
 
 // ── Writer state ──────────────────────────────────────────────────────────────
@@ -463,6 +486,48 @@ const queryLatestSessionAt = (db: DatabaseSync): string | null => {
   return row?.latest ?? null;
 };
 
+// Gracefully return empty arrays when the memory tables don't exist yet.
+const safeQueryAll = <T>(db: DatabaseSync, sql: string, ...params: (string | number | null)[]): T[] => {
+  try {
+    return db.prepare(sql).all(...params) as unknown as T[];
+  } catch {
+    return [];
+  }
+};
+
+const queryMemoryNodes = (db: DatabaseSync, limit = 200): MemoryRow[] =>
+  safeQueryAll<MemoryRow>(
+    db,
+    `SELECT memory_id, type, content, scope, confidence, value_score, tags, created_at, content_time
+     FROM memory_current
+     WHERE status = 'active'
+     ORDER BY confidence DESC, created_at DESC
+     LIMIT ?`,
+    limit,
+  );
+
+const queryEntities = (db: DatabaseSync): EntityRow[] =>
+  safeQueryAll<EntityRow>(
+    db,
+    `SELECT entity_id, kind, display_name, confidence, created_at, updated_at
+     FROM memory_entities
+     WHERE status = 'active'
+     ORDER BY confidence DESC, updated_at DESC`,
+  );
+
+const queryMemoriesForEntity = (db: DatabaseSync, displayName: string, limit = 10): MemoryRow[] =>
+  safeQueryAll<MemoryRow>(
+    db,
+    `SELECT memory_id, type, content, scope, confidence, value_score, tags, created_at, content_time
+     FROM memory_current
+     WHERE status = 'active' AND (tags LIKE ? OR content LIKE ?)
+     ORDER BY confidence DESC, created_at DESC
+     LIMIT ?`,
+    `%${displayName}%`,
+    `%${displayName}%`,
+    limit,
+  );
+
 // ── Note renderers ────────────────────────────────────────────────────────────
 
 type ConversationData = {
@@ -571,6 +636,167 @@ const renderAgentNote = (data: AgentData): string => {
   return `${frontmatter}${lines.join("\n")}\n`;
 };
 
+// ── Memory & Entity renderers ─────────────────────────────────────────────────
+
+const renderMemoryIndexNote = (params: {
+  generatedAt: string;
+  memories: MemoryRow[];
+}): string => {
+  const { generatedAt, memories } = params;
+  const grouped: Record<string, MemoryRow[]> = {};
+  for (const m of memories) {
+    const kind = m.type || "CONTEXT";
+    if (!grouped[kind]) grouped[kind] = [];
+    grouped[kind].push(m);
+  }
+
+  const lines: string[] = [];
+  lines.push("# Memory Index");
+  lines.push("");
+  lines.push(`- generated_at: ${generatedAt}`);
+  lines.push(`- total_memories: ${memories.length}`);
+  lines.push("");
+
+  for (const kind of Object.keys(grouped).sort()) {
+    const group = grouped[kind];
+    lines.push(`## ${kind} (${group.length})`);
+    lines.push("");
+    for (const m of group.slice(0, 30)) {
+      const snippet = String(m.content).replace(/\n/g, " ").substring(0, 120);
+      const when = m.content_time || m.created_at.slice(0, 10);
+      lines.push(`- **[${when}]** (conf: ${Number(m.confidence).toFixed(2)}) ${snippet}`);
+    }
+    if (group.length > 30) {
+      lines.push(`- *(${group.length - 30} more not shown)*`);
+    }
+    lines.push("");
+  }
+
+  return `${lines.join("\n")}\n`;
+};
+
+const renderEntityPageNote = (params: {
+  entity: EntityRow;
+  memories: MemoryRow[];
+  generatedAt: string;
+}): string => {
+  const { entity, memories, generatedAt } = params;
+  const frontmatter = renderFrontmatter({
+    entity_id: entity.entity_id,
+    kind: entity.kind,
+    confidence: entity.confidence,
+    updated_at: entity.updated_at,
+  });
+
+  const lines: string[] = [];
+  lines.push(`# ${entity.display_name}`);
+  lines.push("");
+  lines.push(`- kind: ${entity.kind}`);
+  lines.push(`- confidence: ${Number(entity.confidence).toFixed(2)}`);
+  lines.push(`- first_seen: ${entity.created_at.slice(0, 10)}`);
+  lines.push(`- last_updated: ${entity.updated_at.slice(0, 10)}`);
+  lines.push(`- generated_at: ${generatedAt}`);
+  lines.push("");
+
+  if (memories.length > 0) {
+    lines.push("## Known Facts");
+    lines.push("");
+    for (const m of memories) {
+      const when = m.content_time || m.created_at.slice(0, 10);
+      const kindTag = m.type !== "CONTEXT" ? ` [${m.type}]` : "";
+      lines.push(`- **${when}**${kindTag} ${m.content.replace(/\n/g, " ").substring(0, 200)}`);
+    }
+    lines.push("");
+  } else {
+    lines.push("*No specific memories found for this entity.*");
+    lines.push("");
+  }
+
+  return `${frontmatter}${lines.join("\n")}\n`;
+};
+
+const renderKnowledgeGraphView = (params: {
+  entities: EntityRow[];
+  memoryCount: number;
+  generatedAt: string;
+}): string => {
+  const { entities, memoryCount, generatedAt } = params;
+  const byKind: Record<string, EntityRow[]> = {};
+  for (const e of entities) {
+    if (!byKind[e.kind]) byKind[e.kind] = [];
+    byKind[e.kind].push(e);
+  }
+
+  const lines: string[] = [];
+  lines.push("# Knowledge Graph");
+  lines.push("");
+  lines.push(`- generated_at: ${generatedAt}`);
+  lines.push(`- total_entities: ${entities.length}`);
+  lines.push(`- total_memories: ${memoryCount}`);
+  lines.push("");
+  lines.push("## Entities by Kind");
+  lines.push("");
+
+  for (const kind of Object.keys(byKind).sort()) {
+    const group = byKind[kind];
+    lines.push(`### ${kind} (${group.length})`);
+    lines.push("");
+    for (const e of group.slice(0, 50)) {
+      const entityNoteName = `60 Entities/${e.display_name}.md`;
+      lines.push(`- ${wikiLink(entityNoteName, e.display_name)} (conf: ${Number(e.confidence).toFixed(2)}, updated: ${e.updated_at.slice(0, 10)})`);
+    }
+    if (group.length > 50) lines.push(`- *(${group.length - 50} more)*`);
+    lines.push("");
+  }
+
+  return `${lines.join("\n")}\n`;
+};
+
+const renderDailyBriefing = (params: {
+  generatedAt: string;
+  recentMemories: MemoryRow[];
+  entities: EntityRow[];
+}): string => {
+  const { generatedAt, recentMemories, entities } = params;
+  const today = generatedAt.slice(0, 10);
+  const todayMemories = recentMemories.filter(
+    (m) => m.created_at.slice(0, 10) === today || (m.content_time || "").slice(0, 10) === today,
+  );
+
+  const lines: string[] = [];
+  lines.push(`# Daily Briefing — ${today}`);
+  lines.push("");
+  lines.push(`- generated_at: ${generatedAt}`);
+  lines.push(`- total_active_memories: ${recentMemories.length}`);
+  lines.push(`- total_entities: ${entities.length}`);
+  lines.push(`- new_today: ${todayMemories.length}`);
+  lines.push("");
+
+  if (todayMemories.length > 0) {
+    lines.push("## New Today");
+    lines.push("");
+    for (const m of todayMemories.slice(0, 20)) {
+      lines.push(`- [${m.type}] ${m.content.replace(/\n/g, " ").substring(0, 150)}`);
+    }
+    lines.push("");
+  }
+
+  if (entities.length > 0) {
+    const recentEntities = entities.slice(0, 10);
+    lines.push("## Recently Updated Entities");
+    lines.push("");
+    for (const e of recentEntities) {
+      lines.push(`- ${wikiLink(`60 Entities/${e.display_name}.md`, e.display_name)} (${e.kind}, updated: ${e.updated_at.slice(0, 10)})`);
+    }
+    lines.push("");
+  }
+
+  lines.push(`[[30 Views/Knowledge Graph|→ Knowledge Graph]] | [[50 Memory/Memory Index|→ Memory Index]]`);
+  lines.push("");
+
+  return `${lines.join("\n")}\n`;
+};
+
 const renderHomeNote = (params: {
   generatedAt: string;
   vaultRoot: string;
@@ -584,6 +810,8 @@ const renderHomeNote = (params: {
   freshness: VaultFreshness;
   mode: string;
   homeNoteName: string;
+  memoryCount: number;
+  entityCount: number;
 }): string => {
   const exportDiagnostics =
     params.mode === "diagnostic" || params.freshness.session.stale;
@@ -598,6 +826,8 @@ const renderHomeNote = (params: {
   lines.push(`- total_summaries: ${params.summaryCount}`);
   lines.push(`- condensed: ${params.condensedCount}`);
   lines.push(`- leaf: ${params.leafCount}`);
+  lines.push(`- memories: ${params.memoryCount}`);
+  lines.push(`- entities: ${params.entityCount}`);
   lines.push("");
   lines.push("## Model");
   lines.push("");
@@ -611,7 +841,7 @@ const renderHomeNote = (params: {
     "- The default curated surface shows only condensed summaries per session.",
   );
   lines.push(
-    "- Diagnostic mode additionally exports leaf summaries and depth distribution views.",
+    "- Memories are long-term facts, preferences, and decisions captured across sessions.",
   );
   lines.push("");
   lines.push("## Health");
@@ -628,13 +858,19 @@ const renderHomeNote = (params: {
     `- manual_folder_protection_ok: ${params.freshness.manual_protection.ok}`,
   );
   lines.push("");
-  lines.push("## Views");
+  lines.push("## Context (Conversation History)");
   lines.push("");
   lines.push(`- ${wikiLink("30 Views/Recent Sessions.md")}`);
   lines.push(`- ${wikiLink("30 Views/Agent Overview.md")}`);
   if (exportDiagnostics) {
     lines.push(`- ${wikiLink("30 Views/Summary Depth.md")}`);
   }
+  lines.push("");
+  lines.push("## Memory & Knowledge");
+  lines.push("");
+  lines.push(`- ${wikiLink("50 Memory/Memory Index.md")} (${params.memoryCount} memories)`);
+  lines.push(`- ${wikiLink("30 Views/Knowledge Graph.md")} (${params.entityCount} entities)`);
+  lines.push(`- ${wikiLink("40 Reports/daily-briefing.md")}`);
   lines.push("");
   lines.push("## Reports");
   lines.push("");
@@ -988,6 +1224,10 @@ export const buildVaultSurface = ({
     const { leaf: leafCount, condensed: condensedCount } = queryKindCounts(ctx.db);
     const lastSessionAt = queryLatestSessionAt(ctx.db);
 
+    // Memory & entity data (graceful — tables may not exist)
+    const memoryNodes = queryMemoryNodes(ctx.db);
+    const entities = queryEntities(ctx.db);
+
     // Build per-conversation summary map
     const summariesByConversation = new Map<number, SummaryRow[]>();
     for (const s of allSummaries) {
@@ -1049,6 +1289,8 @@ export const buildVaultSurface = ({
         freshness,
         mode,
         homeNoteName: config.vaultHomeNoteName || "Home",
+        memoryCount: memoryNodes.length,
+        entityCount: entities.length,
       }),
     );
 
@@ -1068,7 +1310,7 @@ export const buildVaultSurface = ({
       writeManagedText(writer, agentNotePath(data.agentId), renderAgentNote(data));
     }
 
-    // Views
+    // Views (context)
     for (const viewFile of buildViewFiles({
       conversations,
       agentGroups,
@@ -1078,6 +1320,38 @@ export const buildVaultSurface = ({
     })) {
       writeManagedText(writer, viewFile.relPath, viewFile.content);
     }
+
+    // Knowledge graph view
+    writeManagedText(
+      writer,
+      "30 Views/Knowledge Graph.md",
+      renderKnowledgeGraphView({ entities, memoryCount: memoryNodes.length, generatedAt }),
+    );
+
+    // Memory index
+    writeManagedText(
+      writer,
+      "50 Memory/Memory Index.md",
+      renderMemoryIndexNote({ generatedAt, memories: memoryNodes }),
+    );
+
+    // Entity pages (one per entity)
+    for (const entity of entities) {
+      const entityMemories = queryMemoriesForEntity(ctx.db, entity.display_name);
+      const safeEntityName = entity.display_name.replace(/[/\\:*?"<>|]/g, "_");
+      writeManagedText(
+        writer,
+        `60 Entities/${safeEntityName}.md`,
+        renderEntityPageNote({ entity, memories: entityMemories, generatedAt }),
+      );
+    }
+
+    // Daily briefing
+    writeManagedText(
+      writer,
+      "40 Reports/daily-briefing.md",
+      renderDailyBriefing({ generatedAt, recentMemories: memoryNodes, entities }),
+    );
 
     // Manual folder protection check
     const manualIssues: string[] = [];
@@ -1110,6 +1384,9 @@ export const buildVaultSurface = ({
         "40 Reports/vault-build-summary.json",
         "40 Reports/vault-manifest.json",
         "40 Reports/vault-freshness.json",
+        "40 Reports/daily-briefing.md",
+        "30 Views/Knowledge Graph.md",
+        "50 Memory/Memory Index.md",
       ];
       if (exportDiagnostics) {
         plannedReportFiles.push("30 Views/Summary Depth.md");

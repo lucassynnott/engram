@@ -4,6 +4,9 @@
   "description": "Unified memory and context engine plugin for OpenClaw — absorbs Lossless Claw, Gigabrain, and OpenStinger into a single plugin",
   "type": "module",
   "main": "index.ts",
+  "bin": {
+    "engram": "./src/cli/engram-cli.ts"
+  },
   "license": "MIT",
   "keywords": [
     "openclaw",
